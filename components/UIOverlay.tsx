@@ -61,6 +61,7 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
         if (playPromise !== undefined) {
           playPromise.catch(error => {
             console.log("Audio playback prevented:", error);
+            // Don't auto-mute here, let the user interaction handler retry
           });
         }
       } else {
@@ -72,20 +73,26 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
   // Global click listener for auto-play
   useEffect(() => {
     const handleGlobalClick = () => {
-      if (isMuted && audioRef.current) {
-        setIsMuted(false);
-        audioRef.current.play().catch(console.error);
+      // Always try to play on click, regardless of muted state (to initialize audio context)
+      if (audioRef.current) {
+        audioRef.current.play()
+          .then(() => {
+            setIsMuted(false); // Successfully played, so unmute
+          })
+          .catch(console.error);
       }
     };
 
     window.addEventListener('click', handleGlobalClick, { once: true });
     window.addEventListener('touchstart', handleGlobalClick, { once: true });
+    window.addEventListener('keydown', handleGlobalClick, { once: true }); // Also handle keyboard interaction
 
     return () => {
       window.removeEventListener('click', handleGlobalClick);
       window.removeEventListener('touchstart', handleGlobalClick);
+      window.removeEventListener('keydown', handleGlobalClick);
     };
-  }, [isMuted]);
+  }, []); // Remove dependency on isMuted to ensure listener attaches once and persists until interaction
 
   const handleNextSong = () => {
     setCurrentSongIndex((prev) => (prev + 1) % SONGS.length);
