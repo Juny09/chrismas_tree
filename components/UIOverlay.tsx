@@ -262,15 +262,15 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
       {/* Main Card Container */}
       <AnimatePresence>
         {showGiftCard && (
-          <div className="w-full max-w-md mx-4 pointer-events-auto">
+          <div className="w-full max-w-[90vw] md:max-w-md mx-auto pointer-events-auto">
             <motion.div
               initial={{ opacity: 0, y: 20, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 20, scale: 0.95 }}
-              className="bg-[#0f1c15]/80 backdrop-blur-xl rounded-2xl border border-[#FFD700]/30 shadow-2xl overflow-hidden"
+              className="bg-[#0f1c15]/80 backdrop-blur-xl rounded-2xl border border-[#FFD700]/30 shadow-2xl overflow-hidden max-h-[85vh] overflow-y-auto"
             >
               {/* Card Content */}
-              <div ref={cardRef} className="p-8 relative">
+              <div ref={cardRef} className="p-6 md:p-8 relative">
                 {/* Close Button */}
                 <button 
                   onClick={onCloseGiftCard}
@@ -285,12 +285,12 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
             <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-[#FF0000]/10 rounded-full blur-3xl" />
             
             {/* Header */}
-            <div className="text-center mb-8">
-              <div className="inline-block p-3 rounded-full bg-gradient-to-br from-[#FFD700]/20 to-transparent mb-4 border border-[#FFD700]/20">
-                <Gift className="w-8 h-8 text-[#FFD700]" />
+            <div className="text-center mb-6 md:mb-8">
+              <div className="inline-block p-2 md:p-3 rounded-full bg-gradient-to-br from-[#FFD700]/20 to-transparent mb-3 md:mb-4 border border-[#FFD700]/20">
+                <Gift className="w-6 h-6 md:w-8 md:h-8 text-[#FFD700]" />
               </div>
-              <h1 className="text-3xl font-serif text-white mb-2 tracking-wide">Christmas Magic</h1>
-              <p className="text-white/60 text-sm font-light">Create your interactive holiday wish</p>
+              <h1 className="text-2xl md:text-3xl font-serif text-white mb-2 tracking-wide">Christmas Magic</h1>
+              <p className="text-white/60 text-xs md:text-sm font-light">Create your interactive holiday wish</p>
             </div>
 
             {/* Photo Preview in Card - Commented out as requested */}
@@ -308,7 +308,7 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
             */}
 
             {/* Input Form */}
-            <div className="space-y-6">
+            <div className="space-y-4 md:space-y-6">
               <div className="relative group">
                 <input
                   type="text"
@@ -318,28 +318,28 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
                     onNameChange?.(e.target.value);
                   }}
                   placeholder="Enter your name..."
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-[#FFD700]/50 focus:bg-white/10 transition-all text-center font-serif text-lg"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-[#FFD700]/50 focus:bg-white/10 transition-all text-center font-serif text-base md:text-lg"
                 />
                 <div className="absolute inset-0 rounded-lg bg-[#FFD700]/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
               </div>
 
               {/* Action Buttons */}
-              <div className="flex gap-3 justify-center">
+              <div className="flex gap-2 md:gap-3 justify-center">
                 <button
                   onClick={handleGenerateWish}
                   disabled={!name || isGenerating}
-                  className="flex-1 bg-[#FFD700]/10 hover:bg-[#FFD700]/20 text-[#FFD700] border border-[#FFD700]/50 rounded-lg px-4 py-2.5 flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
+                  className="flex-1 bg-[#FFD700]/10 hover:bg-[#FFD700]/20 text-[#FFD700] border border-[#FFD700]/50 rounded-lg px-3 py-2 md:px-4 md:py-2.5 flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed group text-sm md:text-base"
                 >
-                  <Sparkles size={18} className={isGenerating ? "animate-spin" : "group-hover:scale-110 transition-transform"} />
+                  <Sparkles size={16} className={isGenerating ? "animate-spin" : "group-hover:scale-110 transition-transform"} />
                   <span className="font-medium">Generate Wish</span>
                 </button>
 
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isUploading}
-                  className="flex-1 bg-white/5 hover:bg-white/10 text-white border border-white/20 rounded-lg px-4 py-2.5 flex items-center justify-center gap-2 transition-all group"
+                  className="flex-1 bg-white/5 hover:bg-white/10 text-white border border-white/20 rounded-lg px-3 py-2 md:px-4 md:py-2.5 flex items-center justify-center gap-2 transition-all group text-sm md:text-base"
                 >
-                  <Camera size={18} className="group-hover:scale-110 transition-transform" />
+                  <Camera size={16} className="group-hover:scale-110 transition-transform" />
                   <span className="font-medium">{isUploading ? 'Uploading...' : 'Add Photo'}</span>
                 </button>
                 <input
@@ -360,18 +360,18 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
                     exit={{ opacity: 0, height: 0 }}
                     className="relative"
                   >
-                    <div className="relative bg-gradient-to-b from-white/5 to-transparent rounded-lg p-6 border border-white/10">
+                    <div className="relative bg-gradient-to-b from-white/5 to-transparent rounded-lg p-4 md:p-6 border border-white/10">
                       <textarea
                         value={wish}
                         onChange={(e) => {
                           setWish(e.target.value);
                           onWishChange?.(e.target.value);
                         }}
-                        className="w-full bg-transparent border-none text-white/90 text-center font-serif italic text-lg leading-relaxed focus:outline-none resize-none"
+                        className="w-full bg-transparent border-none text-white/90 text-center font-serif italic text-base md:text-lg leading-relaxed focus:outline-none resize-none"
                         rows={6}
                       />
-                      <div className="absolute -top-2 -left-2 text-[#FFD700]/40 text-4xl font-serif">"</div>
-                      <div className="absolute -bottom-4 -right-2 text-[#FFD700]/40 text-4xl font-serif">"</div>
+                      <div className="absolute -top-2 -left-2 text-[#FFD700]/40 text-3xl md:text-4xl font-serif">"</div>
+                      <div className="absolute -bottom-4 -right-2 text-[#FFD700]/40 text-3xl md:text-4xl font-serif">"</div>
                     </div>
                   </motion.div>
                 )}
@@ -382,11 +382,11 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className="flex gap-3 pt-4 border-t border-white/10"
+                  className="flex gap-2 md:gap-3 pt-2 md:pt-4 border-t border-white/10"
                 >
                   <button
                     onClick={handleShare}
-                    className="flex-1 bg-[#FFD700] hover:bg-[#FDB931] text-[#0f1c15] rounded-lg px-4 py-3 flex items-center justify-center gap-2 font-bold transition-all transform hover:scale-[1.02] shadow-lg shadow-[#FFD700]/20"
+                    className="flex-1 bg-[#FFD700] hover:bg-[#FDB931] text-[#0f1c15] rounded-lg px-4 py-2.5 md:px-4 md:py-3 flex items-center justify-center gap-2 font-bold transition-all transform hover:scale-[1.02] shadow-lg shadow-[#FFD700]/20 text-sm md:text-base"
                   >
                     <Share2 size={18} />
                     Share Card
@@ -394,7 +394,7 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
                   
                   <button
                     onClick={downloadCard}
-                    className="px-4 py-3 bg-white/5 hover:bg-white/10 text-white border border-white/20 rounded-lg flex items-center justify-center transition-all hover:scale-[1.02]"
+                    className="px-3 py-2.5 md:px-4 md:py-3 bg-white/5 hover:bg-white/10 text-white border border-white/20 rounded-lg flex items-center justify-center transition-all hover:scale-[1.02]"
                     title="Download Image"
                   >
                     <Download size={20} />

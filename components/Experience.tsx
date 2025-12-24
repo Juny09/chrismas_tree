@@ -1,6 +1,6 @@
-import React, { Suspense } from 'react';
-import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Environment, ContactShadows } from '@react-three/drei';
+import React, { Suspense, useRef, useState, useEffect } from 'react';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { CameraControls, Environment, ContactShadows } from '@react-three/drei';
 import { EffectComposer, Bloom, Vignette, Noise } from '@react-three/postprocessing';
 import { ChristmasTree } from './ChristmasTree';
 import { Lights } from './Lights';
@@ -9,6 +9,33 @@ interface ExperienceProps {
   userPhotos?: string[];
   onGiftCardClick?: () => void;
 }
+
+const Controls = () => {
+  const controlsRef = useRef<CameraControls>(null);
+  const [isInteracting, setIsInteracting] = useState(false);
+
+  useFrame((_, delta) => {
+    if (controlsRef.current && !isInteracting) {
+      controlsRef.current.azimuthAngle += 0.2 * delta; 
+    }
+  });
+
+  return (
+    <CameraControls
+      ref={controlsRef}
+      makeDefault
+      dollyToCursor={true}
+      minDistance={2}
+      maxDistance={20}
+      minPolarAngle={0}
+      maxPolarAngle={Math.PI / 1.9}
+      onStart={() => setIsInteracting(true)}
+      onEnd={() => setTimeout(() => setIsInteracting(false), 1000)} // Delay resume
+      dollySpeed={0.5}
+      smoothTime={0.25} // Adds damping feel
+    />
+  );
+};
 
 export const Experience: React.FC<ExperienceProps> = ({ userPhotos = [], onGiftCardClick }) => {
   return (
@@ -52,14 +79,7 @@ export const Experience: React.FC<ExperienceProps> = ({ userPhotos = [], onGiftC
           </group>
         </Suspense>
 
-        <OrbitControls 
-          enablePan={false} 
-          target={[0, -0.5, 0]}
-          minPolarAngle={Math.PI / 2.5} 
-          maxPolarAngle={Math.PI / 1.8}
-          autoRotate={true}
-          autoRotateSpeed={0.5}
-        />
+        <Controls />
       </Canvas>
     </div>
   );
