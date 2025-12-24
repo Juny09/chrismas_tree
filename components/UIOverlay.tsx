@@ -8,16 +8,16 @@ import { uploadImage as uploadPhoto } from '../services/storageService';
 const SONGS = [
   {
     title: "Jingle Bells",
-    url: "https://upload.wikimedia.org/wikipedia/commons/transcoded/5/5a/Jingle_Bells_%2890bpm%29_%28Kevin_MacLeod%29_%28ISRC_USUAN1100187%29.oga/Jingle_Bells_%2890bpm%29_%28Kevin_MacLeod%29_%28ISRC_USUAN1100187%29.oga.mp3"
+    url: "https://archive.org/download/JingleBells3_20181206/Jingle%20Bells%203.mp3"
   },
   {
     title: "We Wish You a Merry Christmas",
-    url: "https://upload.wikimedia.org/wikipedia/commons/transcoded/4/4a/We_Wish_you_a_Merry_Christmas_%28Kevin_MacLeod_%29_%28ISRC_USUAN1100369%29.oga/We_Wish_you_a_Merry_Christmas_%28Kevin_MacLeod_%29_%28ISRC_USUAN1100369%29.oga.mp3"
+    url: "https://archive.org/download/WeWishYou_20181206/We%20Wish%20You.mp3"
   },
-  {
-    title: "Christmas Magic",
-    url: "https://cdn.pixabay.com/download/audio/2022/11/22/audio_febc508520.mp3?filename=christmas-magic-126529.mp3"
-  }
+  // {
+  //   title: "Christmas Magic",
+  //   url: "https://cdn.pixabay.com/download/audio/2022/11/22/audio_febc508520.mp3?filename=christmas-magic-126529.mp3"
+  // }
 ];
 
 interface UIOverlayProps {
@@ -45,7 +45,7 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
   const [showShareTooltip, setShowShareTooltip] = useState(false);
   const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
   const [currentSongIndex, setCurrentSongIndex] = useState(0);
   const [showSongToast, setShowSongToast] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
