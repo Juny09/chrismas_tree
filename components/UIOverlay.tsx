@@ -26,6 +26,7 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({ onPhotoUpload, showGiftCar
   const [audioPlaying, setAudioPlaying] = useState(false);
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
   const [customUrl, setCustomUrl] = useState<string | null>(null);
+  const [showAutoplayHint, setShowAutoplayHint] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Handle track change
@@ -68,6 +69,7 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({ onPhotoUpload, showGiftCar
         playPromise
           .then(() => {
             setAudioPlaying(true);
+            setShowAutoplayHint(false);
             // Remove listeners once playing
             ['click', 'touchstart', 'keydown'].forEach(event => 
               document.removeEventListener(event, attemptPlay, { capture: true } as any)
@@ -76,6 +78,8 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({ onPhotoUpload, showGiftCar
           .catch((error) => {
             console.log("Autoplay prevented by browser:", error);
             setAudioPlaying(false);
+            // Show hint if autoplay was blocked
+            setShowAutoplayHint(true);
           });
       }
     };
@@ -321,6 +325,36 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({ onPhotoUpload, showGiftCar
           setAudioPlaying(false);
         }}
       />
+      
+      {/* Autoplay Hint Toast */}
+      <AnimatePresence>
+        {showAutoplayHint && !audioPlaying && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="absolute top-24 left-1/2 -translate-x-1/2 z-50 pointer-events-auto"
+          >
+            <button
+              onClick={() => {
+                const audio = audioRef.current;
+                if (audio) {
+                  audio.play().then(() => {
+                    setAudioPlaying(true);
+                    setShowAutoplayHint(false);
+                  }).catch(console.error);
+                }
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-black/60 backdrop-blur-md border border-[#FFD700]/30 rounded-full shadow-[0_0_15px_rgba(255,215,0,0.2)] hover:bg-black/80 hover:scale-105 transition-all group"
+            >
+              <Music2 className="w-4 h-4 text-[#FFD700] animate-pulse" />
+              <span className="text-xs font-cinzel text-[#FFD700] tracking-widest uppercase">
+                Tap to Start Music
+              </span>
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </main>
   );
 };
