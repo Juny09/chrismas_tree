@@ -26,11 +26,11 @@ export const Experience: React.FC<ExperienceProps> = ({ userPhotos = [], onGiftC
           <Lights />
           
           <ContactShadows 
-            opacity={0.7} 
+            opacity={0.6} 
             scale={20} 
-            blur={2} 
+            blur={2.5} 
             far={4} 
-            resolution={256} 
+            resolution={128} 
             color="#000000" 
           />
           
@@ -41,12 +41,12 @@ export const Experience: React.FC<ExperienceProps> = ({ userPhotos = [], onGiftC
           <group>
              <EffectComposer disableNormalPass>
               <Bloom 
-                luminanceThreshold={1.1} 
+                luminanceThreshold={1.5} 
                 mipmapBlur 
-                intensity={1.5} 
-                radius={0.6}
+                intensity={1.2} 
+                radius={0.4}
               />
-              <Vignette eskil={false} offset={0.1} darkness={0.6} />
+              <Vignette eskil={false} offset={0.1} darkness={0.5} />
               <Noise opacity={0.02} /> 
             </EffectComposer>
           </group>

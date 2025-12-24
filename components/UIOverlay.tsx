@@ -1,411 +1,312 @@
-import React, { useRef, useState, useEffect } from 'react';
-import { Sparkles as SparklesIcon, Loader2, Play, Pause, Music2, Gift, Camera, X, SkipForward, Link as LinkIcon, Share2, Check } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Sparkles, Send, Download, Share2, Music, Volume2, VolumeX, Camera, Gift, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LoadingState } from '../types';
-import { generateLuxuryWish } from '../services/geminiService';
-
-const PLAYLIST = [
-  { title: "Jingle Bells", url: "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Jingle%20Bells.mp3" },
-  { title: "We Wish You A Merry Christmas", url: "https://incompetech.com/music/royalty-free/mp3-royaltyfree/We%20Wish%20You.mp3" },
-  { title: "Deck the Halls", url: "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Deck%20the%20Halls%20B.mp3" },
-  // { title: "Silent Night", url: "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Silent%20Night.mp3" }
-];
+import html2canvas from 'html2canvas';
+import { generateLuxuryWish as generateChristmasWish } from '../services/geminiService';
+import { uploadImage as uploadPhoto } from '../services/storageService';
 
 interface UIOverlayProps {
+  onNameChange?: (name: string) => void;
+  onWishChange?: (wish: string) => void;
   onPhotoUpload?: (url: string) => void;
+  initialPhoto?: string | null;
   showGiftCard: boolean;
   onOpenGiftCard: () => void;
   onCloseGiftCard: () => void;
 }
 
-export const UIOverlay: React.FC<UIOverlayProps> = ({ onPhotoUpload, showGiftCard, onOpenGiftCard, onCloseGiftCard }) => {
+export const UIOverlay: React.FC<UIOverlayProps> = ({ 
+  onNameChange, 
+  onWishChange, 
+  onPhotoUpload,
+  initialPhoto,
+  showGiftCard,
+  onOpenGiftCard,
+  onCloseGiftCard
+}) => {
   const [name, setName] = useState('');
-  const [loading, setLoading] = useState<LoadingState>(LoadingState.IDLE);
-  const [wish, setWish] = useState<string | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [audioPlaying, setAudioPlaying] = useState(false);
-  const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
-  const [customUrl, setCustomUrl] = useState<string | null>(null);
-  const [showAutoplayHint, setShowAutoplayHint] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [wish, setWish] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [showShareTooltip, setShowShareTooltip] = useState(false);
+  const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
 
-  // Parse URL params for shared wish
+  // Check for shared content in URL on load
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const sharedName = params.get('name');
     const sharedWish = params.get('wish');
+    const sharedPhoto = params.get('photo');
     
     if (sharedName && sharedWish) {
       setName(sharedName);
       setWish(sharedWish);
+      onNameChange?.(sharedName);
+      onWishChange?.(sharedWish);
     }
-  }, []);
-
-  // Handle track change
-  const nextTrack = () => {
-    const nextIndex = (currentTrackIndex + 1) % PLAYLIST.length;
-    setCurrentTrackIndex(nextIndex);
-    setCustomUrl(null); // Reset custom URL when cycling
-    // Auto play new track
-    setTimeout(() => {
-      if (audioRef.current) {
-        audioRef.current.play().catch(() => {});
-        setAudioPlaying(true);
-      }
-    }, 100);
-  };
-
-  const handleCustomMusic = () => {
-    const url = prompt("Enter an online MP3 URL (e.g., https://example.com/song.mp3):");
-    if (url && url.trim().startsWith('http')) {
-      setCustomUrl(url.trim());
-      setAudioPlaying(true);
-      setTimeout(() => {
-        if (audioRef.current) {
-          audioRef.current.play().catch(() => {});
-        }
-      }, 100);
-    }
-  };
-
-  // Auto-play music on mount
-  React.useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
     
-    audio.volume = 0.4; // Set reasonable default volume
-
-    const attemptPlay = () => {
-      const playPromise = audio.play();
-      if (playPromise !== undefined) {
-        playPromise
-          .then(() => {
-            setAudioPlaying(true);
-            setShowAutoplayHint(false);
-            // Remove listeners once playing
-            ['click', 'touchstart', 'keydown'].forEach(event => 
-              document.removeEventListener(event, attemptPlay, { capture: true } as any)
-            );
-          })
-          .catch((error) => {
-            console.log("Autoplay prevented by browser:", error);
-            setAudioPlaying(false);
-            // Show hint if autoplay was blocked
-            setShowAutoplayHint(true);
-          });
-      }
-    };
-
-    // Try to play immediately
-    attemptPlay();
-    
-    // Also try to play on any first interaction (capture phase to ensure we catch it)
-    ['click', 'touchstart', 'keydown'].forEach(event => 
-      document.addEventListener(event, attemptPlay, { capture: true, once: true })
-    );
-
-    return () => {
-      ['click', 'touchstart', 'keydown'].forEach(event => 
-        document.removeEventListener(event, attemptPlay, { capture: true } as any)
-      );
-    };
-  }, []);
-
-  const toggleAudio = async () => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    try {
-      if (audioPlaying) {
-        audio.pause();
-        setAudioPlaying(false);
-      } else {
-        await audio.play();
-        setAudioPlaying(true);
-      }
-    } catch (_) {
-      // Handle mobile autoplay restrictions
+    if (sharedPhoto) {
+      setPreviewPhoto(sharedPhoto);
+      // Commented out to prevent duplicate uploads/infinite loops when opening shared links
+      // onPhotoUpload?.(sharedPhoto); 
     }
-  };
+  }, [onNameChange, onWishChange, onPhotoUpload]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file && onPhotoUpload) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          onPhotoUpload(event.target.result as string);
-        }
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleGenerate = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleGenerateWish = async () => {
     if (!name) return;
-
-    setLoading(LoadingState.GENERATING);
-    setWish(null);
-
-    const generatedWish = await generateLuxuryWish(name);
     
-    setWish(generatedWish);
-    setLoading(LoadingState.COMPLETE);
+    setIsGenerating(true);
+    try {
+      const newWish = await generateChristmasWish(name);
+      setWish(newWish);
+      onWishChange(newWish);
+    } catch (error) {
+      console.error('Failed to generate wish:', error);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handlePhotoSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      // Create local preview immediately
+      const objectUrl = URL.createObjectURL(file);
+      setPreviewPhoto(objectUrl);
+      
+      // Upload to cloud
+      const cloudUrl = await uploadPhoto(file);
+      if (onPhotoUpload) {
+        onPhotoUpload(cloudUrl);
+        // Update preview to cloud URL once ready
+        setPreviewPhoto(cloudUrl);
+      }
+    } catch (error) {
+      console.error('Failed to upload photo:', error);
+      alert('Failed to upload photo. Please try again.');
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleShare = async () => {
-    if (!name || !wish) return;
+    const params = new URLSearchParams();
+    if (name) params.set('name', name);
+    if (wish) params.set('wish', wish);
+    if (previewPhoto && !previewPhoto.startsWith('blob:')) {
+      params.set('photo', previewPhoto);
+    }
     
-    const url = new URL(window.location.href);
-    url.searchParams.set('name', name);
-    url.searchParams.set('wish', wish);
+    const url = `${window.location.origin}${window.location.pathname}?${params.toString()}`;
     
     try {
-      await navigator.clipboard.writeText(url.toString());
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      await navigator.clipboard.writeText(url);
+      setShowShareTooltip(true);
+      setTimeout(() => setShowShareTooltip(false), 2000);
     } catch (err) {
-      console.error('Failed to copy link:', err);
+      console.error('Failed to copy URL:', err);
+    }
+  };
+
+  const downloadCard = async () => {
+    if (!cardRef.current) return;
+    
+    try {
+      const canvas = await html2canvas(cardRef.current, {
+        backgroundColor: '#0f1c15',
+        scale: 2,
+      });
+      
+      const link = document.createElement('a');
+      link.download = `christmas-wish-${name || 'card'}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (err) {
+      console.error('Failed to download card:', err);
     }
   };
 
   return (
-    <main className="absolute inset-0 pointer-events-none overflow-hidden z-10">
-      {/* Header - Fixed */}
-      <header className="absolute top-8 left-0 right-0 text-center space-y-2 animate-fade-in-down pointer-events-none">
-        <h3 className="font-cinzel tracking-[0.3em] text-[10px] md:text-xs text-emerald-400 opacity-80 uppercase">
-          Merry Christmas
-        </h3>
-        {/* Title removed to keep it clean */}
-      </header>
-
-      {/* Audio Control - Fixed Bottom Left */}
-      <div className="pointer-events-auto absolute left-6 bottom-8 flex flex-col gap-2">
-        <div className="flex items-center gap-2 text-emerald-200/80">
-          <button onClick={toggleAudio} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/40 border border-[#FFD700]/30 backdrop-blur-sm transition-all hover:bg-black/60 hover:border-[#FFD700]/60">
-            {audioPlaying ? <Pause className="w-3.5 h-3.5 text-[#FFD700]" /> : <Play className="w-3.5 h-3.5 text-[#FFD700]" />}
-            <span className="text-[10px] font-cinzel tracking-widest uppercase text-[#FFD700]">
-              {audioPlaying ? 'Pause' : 'Play'}
-            </span>
-          </button>
-
-          <button onClick={nextTrack} className="p-1.5 rounded-full bg-black/40 border border-[#FFD700]/30 backdrop-blur-sm transition-all hover:bg-black/60 hover:border-[#FFD700]/60" title="Next Song">
-            <SkipForward className="w-3.5 h-3.5 text-[#FFD700]" />
-          </button>
-
-          <button onClick={handleCustomMusic} className="p-1.5 rounded-full bg-black/40 border border-[#FFD700]/30 backdrop-blur-sm transition-all hover:bg-black/60 hover:border-[#FFD700]/60" title="Enter Custom MP3 URL">
-            <LinkIcon className="w-3.5 h-3.5 text-[#FFD700]" />
-          </button>
-
-          <button onClick={onOpenGiftCard} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/40 border border-[#FFD700]/30 backdrop-blur-sm transition-all hover:bg-black/60 hover:border-[#FFD700]/60">
-            <Gift className="w-3.5 h-3.5 text-[#FFD700]" />
-            <span className="text-[10px] font-cinzel tracking-widest uppercase text-[#FFD700]">Write Wish</span>
-          </button>
-        </div>
-        
-        {/* Now Playing Label */}
-        <div className="px-2">
-          <span className="text-[9px] font-cinzel text-[#FFD700]/60 uppercase tracking-wider">
-            Now Playing: {customUrl ? 'Custom Track' : PLAYLIST[currentTrackIndex].title}
-          </span>
-        </div>
+    <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-50">
+      {/* Background Music Control */}
+      <div className="absolute top-4 right-4 pointer-events-auto">
+        <button
+          onClick={() => setIsMuted(!isMuted)}
+          className="p-3 bg-white/10 backdrop-blur-md rounded-full text-white/80 hover:text-[#FFD700] hover:bg-white/20 transition-all duration-300"
+        >
+          {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
+        </button>
       </div>
 
-      {/* Gift Card Modal - Centered */}
+      {/* Main Card Container */}
       <AnimatePresence>
         {showGiftCard && (
-          <div className="absolute inset-0 pointer-events-auto flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm z-50">
+          <div className="w-full max-w-md mx-4 pointer-events-auto">
             <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              transition={{ duration: 0.3 }}
-              className="w-full max-w-sm"
+              initial={{ opacity: 0, y: 20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 20, scale: 0.95 }}
+              className="bg-[#0f1c15]/80 backdrop-blur-xl rounded-2xl border border-[#FFD700]/30 shadow-2xl overflow-hidden"
             >
-              {/* Card Visuals */}
-              <div className="relative overflow-hidden rounded-xl bg-[#0f1c15]/95 border border-[#FFD700]/30 shadow-[0_20px_60px_rgba(0,0,0,0.8)]">
-                {/* Decorative Top Border */}
-                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[#FFD700] to-transparent opacity-70" />
-                
+              {/* Card Content */}
+              <div ref={cardRef} className="p-8 relative">
                 {/* Close Button */}
                 <button 
                   onClick={onCloseGiftCard}
-                  className="absolute top-3 right-3 text-[#FFD700]/50 hover:text-[#FFD700] transition-colors z-20"
+                  className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors z-10"
                 >
-                  <X className="w-4 h-4" />
+                  <X size={20} />
                 </button>
 
-                {/* Corner Holly Decoration (CSS radial gradient simulation) */}
-                <div className="absolute -top-10 -right-10 w-20 h-20 bg-gradient-to-br from-[#B71C1C] to-transparent rounded-full opacity-20 blur-xl" />
-
-                <div className="p-6 relative z-10">
-                  {/* Card Header */}
-                  <div className="flex items-center justify-between mb-6 opacity-90">
-                    <div className="flex items-center gap-2">
-                      <Gift className="w-5 h-5 text-[#FFD700]" />
-                      <span className="font-cinzel text-xs tracking-widest text-[#FFD700] uppercase">
-                        Gift Card
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3 pr-6"> {/* Added padding right for close button */}
-                       {/* Upload Button */}
-                      <button 
-                        onClick={() => fileInputRef.current?.click()}
-                        className="flex items-center gap-1 group/upload"
-                        title="Add Photo to Tree"
-                      >
-                        <Camera className="w-3.5 h-3.5 text-[#FFD700]/70 group-hover/upload:text-[#FFD700] transition-colors" />
-                        <span className="text-[10px] font-cinzel text-[#FFD700]/70 group-hover/upload:text-[#FFD700] uppercase tracking-wider">
-                          Add Photo
-                        </span>
-                      </button>
-                      <input 
-                        ref={fileInputRef}
-                        type="file" 
-                        accept="image/*" 
-                        className="hidden" 
-                        onChange={handleFileChange}
-                      />
-                    </div>
-                  </div>
-
-                  {!wish ? (
-                    <form onSubmit={handleGenerate} className="space-y-6">
-                      <div className="space-y-2">
-                        <label htmlFor="recipient" className="block font-cinzel text-[10px] tracking-[0.2em] text-emerald-100/60 uppercase pl-1">
-                          To:
-                        </label>
-                        <input
-                          id="recipient"
-                          type="text"
-                          value={name}
-                          onChange={(e) => setName(e.target.value)}
-                          placeholder="Name..."
-                          className="w-full bg-white/5 border border-[#FFD700]/20 rounded-lg px-4 py-3 text-base font-playfair text-[#FFF5D1] placeholder:text-white/20 focus:outline-none focus:border-[#FFD700]/60 focus:bg-white/10 transition-all"
-                          autoComplete="off"
-                          autoFocus
-                        />
-                      </div>
-
-                      <button
-                        type="submit"
-                        disabled={loading === LoadingState.GENERATING || !name}
-                        className="group relative w-full overflow-hidden rounded-lg bg-gradient-to-r from-[#FFD700] to-[#B8860B] p-[1px] shadow-lg transition-all hover:shadow-[#FFD700]/20 disabled:opacity-50"
-                      >
-                        <div className="relative flex items-center justify-center gap-2 rounded-lg bg-[#0f1c15] px-4 py-3 transition-all group-hover:bg-opacity-90">
-                          {loading === LoadingState.GENERATING ? (
-                            <Loader2 className="w-4 h-4 animate-spin text-[#FFD700]" />
-                          ) : (
-                            <>
-                              <SparklesIcon className="w-4 h-4 text-[#FFD700]" />
-                              <span className="font-cinzel text-xs tracking-widest text-[#FFD700] group-hover:text-white transition-colors">
-                                OPEN WISH
-                              </span>
-                            </>
-                          )}
-                        </div>
-                      </button>
-                    </form>
-                  ) : (
-                    <div className="text-center space-y-6 animate-fade-in">
-                      <div className="py-2 space-y-4">
-                        <p className="font-cinzel text-[10px] tracking-[0.2em] text-emerald-100/50 uppercase">
-                          Warmest Wishes For {name}
-                        </p>
-                        <div className="relative">
-                          <span className="absolute -top-2 -left-1 text-3xl text-[#FFD700]/20 font-serif">“</span>
-                          <p className="font-playfair text-xl leading-relaxed text-[#FFF5D1] italic px-4">
-                            {wish}
-                          </p>
-                          <span className="absolute -bottom-4 -right-1 text-3xl text-[#FFD700]/20 font-serif">”</span>
-                        </div>
-                      </div>
-                      
-                      <div className="pt-2 flex items-center justify-between">
-                        <button
-                          onClick={() => {
-                            setWish(null);
-                            setName('');
-                            setLoading(LoadingState.IDLE);
-                            // Clear URL params
-                            const url = new URL(window.location.href);
-                            url.searchParams.delete('name');
-                            url.searchParams.delete('wish');
-                            window.history.pushState({}, '', url);
-                          }}
-                          className="text-[10px] font-cinzel tracking-widest text-[#FFD700]/50 hover:text-[#FFD700] transition-colors border-b border-transparent hover:border-[#FFD700]"
-                        >
-                          WRITE ANOTHER
-                        </button>
-
-                        <button
-                          onClick={handleShare}
-                          className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#FFD700]/10 border border-[#FFD700]/30 hover:bg-[#FFD700]/20 transition-all ml-auto"
-                        >
-                          {copied ? (
-                            <>
-                              <Check className="w-3 h-3 text-emerald-400" />
-                              <span className="text-[10px] font-cinzel tracking-widest text-emerald-400">COPIED</span>
-                            </>
-                          ) : (
-                            <>
-                              <Share2 className="w-3 h-3 text-[#FFD700]" />
-                              <span className="text-[10px] font-cinzel tracking-widest text-[#FFD700]">SHARE CARD</span>
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                {/* Decorative Elements */}
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#FFD700] to-transparent opacity-50" />
+            <div className="absolute -top-10 -right-10 w-32 h-32 bg-[#FFD700]/10 rounded-full blur-3xl" />
+            <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-[#FF0000]/10 rounded-full blur-3xl" />
+            
+            {/* Header */}
+            <div className="text-center mb-8">
+              <div className="inline-block p-3 rounded-full bg-gradient-to-br from-[#FFD700]/20 to-transparent mb-4 border border-[#FFD700]/20">
+                <Gift className="w-8 h-8 text-[#FFD700]" />
               </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+              <h1 className="text-3xl font-serif text-white mb-2 tracking-wide">Christmas Magic</h1>
+              <p className="text-white/60 text-sm font-light">Create your interactive holiday wish</p>
+            </div>
 
-      {/* Audio Element - Jingle Bells */}
-      <audio 
-        ref={audioRef} 
-        src={customUrl || PLAYLIST[currentTrackIndex].url} 
-        preload="auto" 
-        loop 
-        onError={(e) => {
-          console.error("Audio playback error:", e.currentTarget.error);
-          setAudioPlaying(false);
-        }}
-      />
-      
-      {/* Autoplay Hint Toast */}
-      <AnimatePresence>
-        {showAutoplayHint && !audioPlaying && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="absolute top-24 left-1/2 -translate-x-1/2 z-50 pointer-events-auto"
-          >
-            <button
-              onClick={() => {
-                const audio = audioRef.current;
-                if (audio) {
-                  audio.play().then(() => {
-                    setAudioPlaying(true);
-                    setShowAutoplayHint(false);
-                  }).catch(console.error);
-                }
-              }}
-              className="flex items-center gap-2 px-4 py-2 bg-black/60 backdrop-blur-md border border-[#FFD700]/30 rounded-full shadow-[0_0_15px_rgba(255,215,0,0.2)] hover:bg-black/80 hover:scale-105 transition-all group"
-            >
-              <Music2 className="w-4 h-4 text-[#FFD700] animate-pulse" />
-              <span className="text-xs font-cinzel text-[#FFD700] tracking-widest uppercase">
-                Tap to Start Music
-              </span>
-            </button>
-          </motion.div>
+            {/* Photo Preview in Card - Commented out as requested */}
+            {/* 
+            {previewPhoto && (
+              <div className="mb-6 relative w-full aspect-[4/3] rounded-lg overflow-hidden border border-[#FFD700]/20 shadow-inner group/photo">
+                <img 
+                  src={previewPhoto} 
+                  alt="Preview" 
+                  className="w-full h-full object-cover opacity-80 group-hover/photo:opacity-100 transition-opacity"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0f1c15] to-transparent opacity-60" />
+              </div>
+            )}
+            */}
+
+            {/* Input Form */}
+            <div className="space-y-6">
+              <div className="relative group">
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    onNameChange?.(e.target.value);
+                  }}
+                  placeholder="Enter your name..."
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-[#FFD700]/50 focus:bg-white/10 transition-all text-center font-serif text-lg"
+                />
+                <div className="absolute inset-0 rounded-lg bg-[#FFD700]/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 justify-center">
+                <button
+                  onClick={handleGenerateWish}
+                  disabled={!name || isGenerating}
+                  className="flex-1 bg-[#FFD700]/10 hover:bg-[#FFD700]/20 text-[#FFD700] border border-[#FFD700]/50 rounded-lg px-4 py-2.5 flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
+                >
+                  <Sparkles size={18} className={isGenerating ? "animate-spin" : "group-hover:scale-110 transition-transform"} />
+                  <span className="font-medium">Generate Wish</span>
+                </button>
+
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading}
+                  className="flex-1 bg-white/5 hover:bg-white/10 text-white border border-white/20 rounded-lg px-4 py-2.5 flex items-center justify-center gap-2 transition-all group"
+                >
+                  <Camera size={18} className="group-hover:scale-110 transition-transform" />
+                  <span className="font-medium">{isUploading ? 'Uploading...' : 'Add Photo'}</span>
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePhotoSelect}
+                  className="hidden"
+                />
+              </div>
+
+              {/* Wish Text */}
+              <AnimatePresence mode="wait">
+                {wish && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="relative"
+                  >
+                    <div className="relative bg-gradient-to-b from-white/5 to-transparent rounded-lg p-6 border border-white/10">
+                      <textarea
+                        value={wish}
+                        onChange={(e) => {
+                          setWish(e.target.value);
+                          onWishChange?.(e.target.value);
+                        }}
+                        className="w-full bg-transparent border-none text-white/90 text-center font-serif italic text-lg leading-relaxed focus:outline-none resize-none"
+                        rows={6}
+                      />
+                      <div className="absolute -top-2 -left-2 text-[#FFD700]/40 text-4xl font-serif">"</div>
+                      <div className="absolute -bottom-4 -right-2 text-[#FFD700]/40 text-4xl font-serif">"</div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Footer Actions */}
+              {wish && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="flex gap-3 pt-4 border-t border-white/10"
+                >
+                  <button
+                    onClick={handleShare}
+                    className="flex-1 bg-[#FFD700] hover:bg-[#FDB931] text-[#0f1c15] rounded-lg px-4 py-3 flex items-center justify-center gap-2 font-bold transition-all transform hover:scale-[1.02] shadow-lg shadow-[#FFD700]/20"
+                  >
+                    <Share2 size={18} />
+                    Share Card
+                  </button>
+                  
+                  <button
+                    onClick={downloadCard}
+                    className="px-4 py-3 bg-white/5 hover:bg-white/10 text-white border border-white/20 rounded-lg flex items-center justify-center transition-all hover:scale-[1.02]"
+                    title="Download Image"
+                  >
+                    <Download size={20} />
+                  </button>
+                </motion.div>
+              )}
+            </div>
+          </div>
+
+          {/* Share Tooltip */}
+          <AnimatePresence>
+            {showShareTooltip && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                className="absolute bottom-20 left-1/2 transform -translate-x-1/2 bg-[#FFD700] text-[#0f1c15] px-4 py-2 rounded-full text-sm font-bold shadow-xl z-50 flex items-center gap-2"
+              >
+                <Sparkles size={14} />
+                Link copied to clipboard!
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
+      </div>
         )}
       </AnimatePresence>
-    </main>
+    </div>
   );
 };

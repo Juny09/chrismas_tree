@@ -14,12 +14,15 @@
     "@react-three/fiber": "8.15.16",
     "@react-three/postprocessing": "2.16.0",
     "framer-motion": "^12.23.26",
+    "html-to-image": "^1.11.13",
+    "html2canvas": "^1.4.1",
     "lucide-react": "0.300.0",
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "three": "0.160.0"
   },
   "devDependencies": {
+    "@types/html2canvas": "^0.5.35",
     "@types/node": "^22.14.0",
     "@types/react": "^18.2.48",
     "@types/react-dom": "^18.2.25",

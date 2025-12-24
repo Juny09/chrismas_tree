@@ -109,7 +109,7 @@ const TreeLayer: React.FC<TreeLayerProps> = ({ position, scale, rotationOffset }
 
 // --- Snow Component ---
 const Snow = () => {
-  const count = 3000; // Increased count for fuller effect
+  const count = 1500; // Optimized count for performance
   const mesh = useRef<THREE.Points>(null);
   
   // Custom shader or just smarter attribute management
@@ -138,17 +138,12 @@ const Snow = () => {
     const positions = geometry.attributes.position.array as Float32Array;
     
     // Time for sine wave calculation
-    const time = state.clock.getElapsedTime();
+    // const time = state.clock.getElapsedTime(); // Unused for simple fall
     
     for(let i=0; i<count; i++) {
        // Update Y (Fall)
        let y = positions[i*3+1];
        y -= delta * particles.speeds[i];
-       
-       // Update X/Z (Wiggle/Wind)
-       // We don't permanently change X/Z origin, but we could add a drift.
-       // For simple snow, just falling is fine, but let's add a tiny drift
-       // positions[i*3] += Math.sin(time + particles.offsets[i]) * 0.01; 
        
        // Reset if below ground
        // Use a varied reset height so they don't fall in sheets
@@ -171,7 +166,7 @@ const Snow = () => {
         <bufferAttribute attach="attributes-position" count={count} array={particles.positions} itemSize={3} />
       </bufferGeometry>
       <pointsMaterial 
-        size={0.15} 
+        size={0.2} 
         color="#fff" 
         transparent 
         opacity={0.8} 
@@ -207,7 +202,7 @@ const SnowFloor: React.FC = () => {
       {/* Main Curved Ground (Huge Sphere Cap) for Horizon Effect */}
       {/* Radius reduced to 14 to make the curve steeper (horizon drops faster) */}
       <mesh position={[0, -14, 0]} receiveShadow>
-         <sphereGeometry args={[14, 64, 64, 0, Math.PI * 2, 0, 0.5]} />
+         <sphereGeometry args={[14, 48, 48, 0, Math.PI * 2, 0, 0.5]} />
          <meshStandardMaterial color="#ffffff" roughness={0.9} metalness={0.1} />
       </mesh>
       
