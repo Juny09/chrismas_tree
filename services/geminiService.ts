@@ -17,7 +17,7 @@ export const generateLuxuryWish = async (recipient: string, tone: string = "warm
       面向移动端显示，字数不超过30个英文词。
       主题聚焦：光、温暖、团聚与宁静。
       禁止出现品牌或产品词，尤其不要包含“Arix Signature”和“Golden Pine”。
-      不要使用表情符号。我要random的圣诞祝福语，用英文来写。
+      不要使用表情符号。请随机生成一段温馨的圣诞祝福，必须用英文撰写。
     `;
 
     const response = await client.models.generateContent({

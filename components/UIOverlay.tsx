@@ -1,9 +1,24 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Sparkles, Send, Download, Share2, Music, Volume2, VolumeX, Camera, Gift, X } from 'lucide-react';
+import { Sparkles, Send, Download, Share2, Music, Volume2, VolumeX, Camera, Gift, X, SkipForward } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import html2canvas from 'html2canvas';
 import { generateLuxuryWish as generateChristmasWish } from '../services/geminiService';
 import { uploadImage as uploadPhoto } from '../services/storageService';
+
+const SONGS = [
+  {
+    title: "Jingle Bells",
+    url: "https://upload.wikimedia.org/wikipedia/commons/transcoded/5/5a/Jingle_Bells_%2890bpm%29_%28Kevin_MacLeod%29_%28ISRC_USUAN1100187%29.oga/Jingle_Bells_%2890bpm%29_%28Kevin_MacLeod%29_%28ISRC_USUAN1100187%29.oga.mp3"
+  },
+  {
+    title: "We Wish You a Merry Christmas",
+    url: "https://upload.wikimedia.org/wikipedia/commons/transcoded/4/4a/We_Wish_you_a_Merry_Christmas_%28Kevin_MacLeod_%29_%28ISRC_USUAN1100369%29.oga/We_Wish_you_a_Merry_Christmas_%28Kevin_MacLeod_%29_%28ISRC_USUAN1100369%29.oga.mp3"
+  },
+  {
+    title: "Christmas Magic",
+    url: "https://cdn.pixabay.com/download/audio/2022/11/22/audio_febc508520.mp3?filename=christmas-magic-126529.mp3"
+  }
+];
 
 interface UIOverlayProps {
   onNameChange?: (name: string) => void;
@@ -31,8 +46,38 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
   const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [currentSongIndex, setCurrentSongIndex] = useState(0);
+  const [showSongToast, setShowSongToast] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
+
+  // Audio Control
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = 0.4;
+      if (!isMuted) {
+        const playPromise = audioRef.current.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(error => {
+            console.log("Audio playback prevented:", error);
+          });
+        }
+      } else {
+        audioRef.current.pause();
+      }
+    }
+  }, [isMuted, currentSongIndex]);
+
+  const handleNextSong = () => {
+    setCurrentSongIndex((prev) => (prev + 1) % SONGS.length);
+    setShowSongToast(true);
+    setTimeout(() => setShowSongToast(false), 3000);
+    if (!isMuted && audioRef.current) {
+      // Small delay to ensure src update
+      setTimeout(() => audioRef.current?.play().catch(() => {}), 100);
+    }
+  };
 
   // Check for shared content in URL on load
   useEffect(() => {
@@ -134,14 +179,59 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
 
   return (
     <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-50">
-      {/* Background Music Control */}
-      <div className="absolute top-4 right-4 pointer-events-auto">
-        <button
-          onClick={() => setIsMuted(!isMuted)}
-          className="p-3 bg-white/10 backdrop-blur-md rounded-full text-white/80 hover:text-[#FFD700] hover:bg-white/20 transition-all duration-300"
-        >
-          {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
-        </button>
+      <audio 
+        ref={audioRef} 
+        loop 
+        src={SONGS[currentSongIndex].url} 
+      />
+
+      {/* Top Controls */}
+      <div className="absolute top-4 right-4 pointer-events-auto flex flex-col items-end gap-2">
+        <div className="flex gap-3">
+          {/* Open Card Button - Only show if card is closed */}
+          {!showGiftCard && (
+            <button
+              onClick={onOpenGiftCard}
+              className="p-3 bg-white/10 backdrop-blur-md rounded-full text-white/80 hover:text-[#FFD700] hover:bg-white/20 transition-all duration-300"
+              title="Open Gift Card"
+            >
+              <Gift size={24} />
+            </button>
+          )}
+
+          {/* Next Song Control */}
+          <button
+            onClick={handleNextSong}
+            className="p-3 bg-white/10 backdrop-blur-md rounded-full text-white/80 hover:text-[#FFD700] hover:bg-white/20 transition-all duration-300"
+            title="Next Song"
+          >
+            <SkipForward size={24} />
+          </button>
+
+          {/* Music Control */}
+          <button
+            onClick={() => setIsMuted(!isMuted)}
+            className="p-3 bg-white/10 backdrop-blur-md rounded-full text-white/80 hover:text-[#FFD700] hover:bg-white/20 transition-all duration-300"
+            title={isMuted ? "Unmute" : "Mute"}
+          >
+            {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
+          </button>
+        </div>
+
+        {/* Song Toast */}
+        <AnimatePresence>
+          {showSongToast && (
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              className="bg-black/50 backdrop-blur-md px-4 py-2 rounded-lg text-white/80 text-sm border border-white/10 flex items-center gap-2"
+            >
+              <Music size={14} className="text-[#FFD700]" />
+              <span className="font-medium text-[#FFD700]">{SONGS[currentSongIndex].title}</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Main Card Container */}
