@@ -4,7 +4,11 @@ import { UIOverlay } from './components/UIOverlay';
 
 function App() {
   const [userPhotos, setUserPhotos] = useState<string[]>([]);
-  const [showGiftCard, setShowGiftCard] = useState(false);
+  const [showGiftCard, setShowGiftCard] = useState(() => {
+    // Auto-open gift card if 'wish' param exists in URL
+    const params = new URLSearchParams(window.location.search);
+    return params.has('wish');
+  });
 
   const handlePhotoUpload = (photoUrl: string) => {
     setUserPhotos(prev => [...prev, photoUrl]);

@@ -1,5 +1,5 @@
-import React, { useRef, useState } from 'react';
-import { Sparkles as SparklesIcon, Loader2, Play, Pause, Music2, Gift, Camera, X, SkipForward, Link as LinkIcon } from 'lucide-react';
+import React, { useRef, useState, useEffect } from 'react';
+import { Sparkles as SparklesIcon, Loader2, Play, Pause, Music2, Gift, Camera, X, SkipForward, Link as LinkIcon, Share2, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LoadingState } from '../types';
 import { generateLuxuryWish } from '../services/geminiService';
@@ -27,7 +27,20 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({ onPhotoUpload, showGiftCar
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
   const [customUrl, setCustomUrl] = useState<string | null>(null);
   const [showAutoplayHint, setShowAutoplayHint] = useState(false);
+  const [copied, setCopied] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Parse URL params for shared wish
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const sharedName = params.get('name');
+    const sharedWish = params.get('wish');
+    
+    if (sharedName && sharedWish) {
+      setName(sharedName);
+      setWish(sharedWish);
+    }
+  }, []);
 
   // Handle track change
   const nextTrack = () => {
@@ -139,6 +152,22 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({ onPhotoUpload, showGiftCar
     
     setWish(generatedWish);
     setLoading(LoadingState.COMPLETE);
+  };
+
+  const handleShare = async () => {
+    if (!name || !wish) return;
+    
+    const url = new URL(window.location.href);
+    url.searchParams.set('name', name);
+    url.searchParams.set('wish', wish);
+    
+    try {
+      await navigator.clipboard.writeText(url.toString());
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy link:', err);
+    }
   };
 
   return (
@@ -293,16 +322,38 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({ onPhotoUpload, showGiftCar
                         </div>
                       </div>
                       
-                      <div className="pt-2">
+                      <div className="pt-2 flex items-center justify-between">
                         <button
                           onClick={() => {
                             setWish(null);
                             setName('');
                             setLoading(LoadingState.IDLE);
+                            // Clear URL params
+                            const url = new URL(window.location.href);
+                            url.searchParams.delete('name');
+                            url.searchParams.delete('wish');
+                            window.history.pushState({}, '', url);
                           }}
                           className="text-[10px] font-cinzel tracking-widest text-[#FFD700]/50 hover:text-[#FFD700] transition-colors border-b border-transparent hover:border-[#FFD700]"
                         >
                           WRITE ANOTHER
+                        </button>
+
+                        <button
+                          onClick={handleShare}
+                          className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#FFD700]/10 border border-[#FFD700]/30 hover:bg-[#FFD700]/20 transition-all ml-auto"
+                        >
+                          {copied ? (
+                            <>
+                              <Check className="w-3 h-3 text-emerald-400" />
+                              <span className="text-[10px] font-cinzel tracking-widest text-emerald-400">COPIED</span>
+                            </>
+                          ) : (
+                            <>
+                              <Share2 className="w-3 h-3 text-[#FFD700]" />
+                              <span className="text-[10px] font-cinzel tracking-widest text-[#FFD700]">SHARE CARD</span>
+                            </>
+                          )}
                         </button>
                       </div>
                     </div>
