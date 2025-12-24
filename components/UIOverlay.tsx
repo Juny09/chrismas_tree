@@ -69,6 +69,24 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
     }
   }, [isMuted, currentSongIndex]);
 
+  // Global click listener for auto-play
+  useEffect(() => {
+    const handleGlobalClick = () => {
+      if (isMuted && audioRef.current) {
+        setIsMuted(false);
+        audioRef.current.play().catch(console.error);
+      }
+    };
+
+    window.addEventListener('click', handleGlobalClick, { once: true });
+    window.addEventListener('touchstart', handleGlobalClick, { once: true });
+
+    return () => {
+      window.removeEventListener('click', handleGlobalClick);
+      window.removeEventListener('touchstart', handleGlobalClick);
+    };
+  }, [isMuted]);
+
   const handleNextSong = () => {
     setCurrentSongIndex((prev) => (prev + 1) % SONGS.length);
     setShowSongToast(true);
