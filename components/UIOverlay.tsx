@@ -1,8 +1,15 @@
 import React, { useRef, useState } from 'react';
-import { Sparkles as SparklesIcon, Loader2, Play, Pause, Music2, Gift, Camera, X } from 'lucide-react';
+import { Sparkles as SparklesIcon, Loader2, Play, Pause, Music2, Gift, Camera, X, SkipForward, Link as LinkIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LoadingState } from '../types';
 import { generateLuxuryWish } from '../services/geminiService';
+
+const PLAYLIST = [
+  { title: "Jingle Bells", url: "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Jingle%20Bells.mp3" },
+  { title: "We Wish You A Merry Christmas", url: "https://incompetech.com/music/royalty-free/mp3-royaltyfree/We%20Wish%20You.mp3" },
+  { title: "Deck the Halls", url: "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Deck%20the%20Halls%20B.mp3" },
+  // { title: "Silent Night", url: "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Silent%20Night.mp3" }
+];
 
 interface UIOverlayProps {
   onPhotoUpload?: (url: string) => void;
@@ -17,7 +24,76 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({ onPhotoUpload, showGiftCar
   const [wish, setWish] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [audioPlaying, setAudioPlaying] = useState(false);
+  const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
+  const [customUrl, setCustomUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Handle track change
+  const nextTrack = () => {
+    const nextIndex = (currentTrackIndex + 1) % PLAYLIST.length;
+    setCurrentTrackIndex(nextIndex);
+    setCustomUrl(null); // Reset custom URL when cycling
+    // Auto play new track
+    setTimeout(() => {
+      if (audioRef.current) {
+        audioRef.current.play().catch(() => {});
+        setAudioPlaying(true);
+      }
+    }, 100);
+  };
+
+  const handleCustomMusic = () => {
+    const url = prompt("Enter an online MP3 URL (e.g., https://example.com/song.mp3):");
+    if (url && url.trim().startsWith('http')) {
+      setCustomUrl(url.trim());
+      setAudioPlaying(true);
+      setTimeout(() => {
+        if (audioRef.current) {
+          audioRef.current.play().catch(() => {});
+        }
+      }, 100);
+    }
+  };
+
+  // Auto-play music on mount
+  React.useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    
+    audio.volume = 0.4; // Set reasonable default volume
+
+    const attemptPlay = () => {
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            setAudioPlaying(true);
+            // Remove listeners once playing
+            ['click', 'touchstart', 'keydown'].forEach(event => 
+              document.removeEventListener(event, attemptPlay, { capture: true } as any)
+            );
+          })
+          .catch((error) => {
+            console.log("Autoplay prevented by browser:", error);
+            setAudioPlaying(false);
+          });
+      }
+    };
+
+    // Try to play immediately
+    attemptPlay();
+    
+    // Also try to play on any first interaction (capture phase to ensure we catch it)
+    ['click', 'touchstart', 'keydown'].forEach(event => 
+      document.addEventListener(event, attemptPlay, { capture: true, once: true })
+    );
+
+    return () => {
+      ['click', 'touchstart', 'keydown'].forEach(event => 
+        document.removeEventListener(event, attemptPlay, { capture: true } as any)
+      );
+    };
+  }, []);
 
   const toggleAudio = async () => {
     const audio = audioRef.current;
@@ -72,16 +148,35 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({ onPhotoUpload, showGiftCar
       </header>
 
       {/* Audio Control - Fixed Bottom Left */}
-      <div className="pointer-events-auto absolute left-6 bottom-[140px] flex items-center gap-2 text-emerald-200/80">
-        <button onClick={toggleAudio} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/40 border border-emerald-500/30 backdrop-blur-sm transition-all hover:bg-black/60">
-          {audioPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-          <span className="text-[10px] font-cinzel tracking-widest uppercase">Carols</span>
-        </button>
+      <div className="pointer-events-auto absolute left-6 bottom-8 flex flex-col gap-2">
+        <div className="flex items-center gap-2 text-emerald-200/80">
+          <button onClick={toggleAudio} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/40 border border-[#FFD700]/30 backdrop-blur-sm transition-all hover:bg-black/60 hover:border-[#FFD700]/60">
+            {audioPlaying ? <Pause className="w-3.5 h-3.5 text-[#FFD700]" /> : <Play className="w-3.5 h-3.5 text-[#FFD700]" />}
+            <span className="text-[10px] font-cinzel tracking-widest uppercase text-[#FFD700]">
+              {audioPlaying ? 'Pause' : 'Play'}
+            </span>
+          </button>
 
-        <button onClick={onOpenGiftCard} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/40 border border-[#FFD700]/30 backdrop-blur-sm transition-all hover:bg-black/60 hover:border-[#FFD700]/60">
-          <Gift className="w-3.5 h-3.5 text-[#FFD700]" />
-          <span className="text-[10px] font-cinzel tracking-widest uppercase text-[#FFD700]">Write Wish</span>
-        </button>
+          <button onClick={nextTrack} className="p-1.5 rounded-full bg-black/40 border border-[#FFD700]/30 backdrop-blur-sm transition-all hover:bg-black/60 hover:border-[#FFD700]/60" title="Next Song">
+            <SkipForward className="w-3.5 h-3.5 text-[#FFD700]" />
+          </button>
+
+          <button onClick={handleCustomMusic} className="p-1.5 rounded-full bg-black/40 border border-[#FFD700]/30 backdrop-blur-sm transition-all hover:bg-black/60 hover:border-[#FFD700]/60" title="Enter Custom MP3 URL">
+            <LinkIcon className="w-3.5 h-3.5 text-[#FFD700]" />
+          </button>
+
+          <button onClick={onOpenGiftCard} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/40 border border-[#FFD700]/30 backdrop-blur-sm transition-all hover:bg-black/60 hover:border-[#FFD700]/60">
+            <Gift className="w-3.5 h-3.5 text-[#FFD700]" />
+            <span className="text-[10px] font-cinzel tracking-widest uppercase text-[#FFD700]">Write Wish</span>
+          </button>
+        </div>
+        
+        {/* Now Playing Label */}
+        <div className="px-2">
+          <span className="text-[9px] font-cinzel text-[#FFD700]/60 uppercase tracking-wider">
+            Now Playing: {customUrl ? 'Custom Track' : PLAYLIST[currentTrackIndex].title}
+          </span>
+        </div>
       </div>
 
       {/* Gift Card Modal - Centered */}
@@ -215,8 +310,17 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({ onPhotoUpload, showGiftCar
         )}
       </AnimatePresence>
 
-      {/* Audio Element */}
-      <audio ref={audioRef} src="/audio/christmas.mp3" preload="none" loop />
+      {/* Audio Element - Jingle Bells */}
+      <audio 
+        ref={audioRef} 
+        src={customUrl || PLAYLIST[currentTrackIndex].url} 
+        preload="auto" 
+        loop 
+        onError={(e) => {
+          console.error("Audio playback error:", e.currentTarget.error);
+          setAudioPlaying(false);
+        }}
+      />
     </main>
   );
 };

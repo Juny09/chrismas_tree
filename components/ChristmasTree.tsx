@@ -109,37 +109,76 @@ const TreeLayer: React.FC<TreeLayerProps> = ({ position, scale, rotationOffset }
 
 // --- Snow Component ---
 const Snow = () => {
-  const count = 1500;
+  const count = 3000; // Increased count for fuller effect
   const mesh = useRef<THREE.Points>(null);
   
+  // Custom shader or just smarter attribute management
   const particles = useMemo(() => {
     const temp = new Float32Array(count * 3);
+    const speeds = new Float32Array(count); // Store speed per particle
+    const offsets = new Float32Array(count); // Store random offsets for wiggle
+    
     for (let i = 0; i < count; i++) {
-      temp[i * 3] = (Math.random() - 0.5) * 20; // x spread
-      temp[i * 3 + 1] = Math.random() * 20;     // y spread
-      temp[i * 3 + 2] = (Math.random() - 0.5) * 20; // z spread
+      // Much wider spread to cover the whole environment
+      temp[i * 3] = (Math.random() - 0.5) * 50; // x spread (-25 to 25)
+      temp[i * 3 + 1] = Math.random() * 40 - 10; // y spread (-10 to 30)
+      temp[i * 3 + 2] = (Math.random() - 0.5) * 50; // z spread (-25 to 25)
+      
+      speeds[i] = 0.5 + Math.random() * 1.5; // Random fall speed
+      offsets[i] = Math.random() * 100; // Random offset for wave motion
     }
-    return temp;
+    return { positions: temp, speeds, offsets };
   }, []);
 
   useFrame((state, delta) => {
     if (!mesh.current) return;
-    const positions = mesh.current.geometry.attributes.position.array as Float32Array;
+    
+    // Safely access geometry attributes
+    const geometry = mesh.current.geometry;
+    const positions = geometry.attributes.position.array as Float32Array;
+    
+    // Time for sine wave calculation
+    const time = state.clock.getElapsedTime();
+    
     for(let i=0; i<count; i++) {
+       // Update Y (Fall)
        let y = positions[i*3+1];
-       y -= delta * 1.5; // Fall speed
-       if(y < -5) y = 15; // Reset height
+       y -= delta * particles.speeds[i];
+       
+       // Update X/Z (Wiggle/Wind)
+       // We don't permanently change X/Z origin, but we could add a drift.
+       // For simple snow, just falling is fine, but let's add a tiny drift
+       // positions[i*3] += Math.sin(time + particles.offsets[i]) * 0.01; 
+       
+       // Reset if below ground
+       // Use a varied reset height so they don't fall in sheets
+       if(y < -5) {
+         y = 25 + Math.random() * 5; 
+         // Also randomize X/Z slightly on reset to avoid patterns
+         positions[i*3] = (Math.random() - 0.5) * 50;
+         positions[i*3+2] = (Math.random() - 0.5) * 50;
+       }
+       
        positions[i*3+1] = y;
     }
-    mesh.current.geometry.attributes.position.needsUpdate = true;
+    
+    geometry.attributes.position.needsUpdate = true;
   });
 
   return (
     <points ref={mesh}>
       <bufferGeometry>
-        <bufferAttribute attach="attributes-position" count={count} array={particles} itemSize={3} />
+        <bufferAttribute attach="attributes-position" count={count} array={particles.positions} itemSize={3} />
       </bufferGeometry>
-      <pointsMaterial size={0.08} color="#fff" transparent opacity={0.8} sizeAttenuation={true} />
+      <pointsMaterial 
+        size={0.15} 
+        color="#fff" 
+        transparent 
+        opacity={0.8} 
+        sizeAttenuation={true} 
+        map={null}
+        alphaTest={0.5}
+      />
     </points>
   )
 }
