@@ -62,7 +62,7 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
     try {
       const newWish = await generateChristmasWish(name);
       setWish(newWish);
-      onWishChange(newWish);
+      onWishChange?.(newWish);
     } catch (error) {
       console.error('Failed to generate wish:', error);
     } finally {
